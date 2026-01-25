@@ -1,0 +1,3 @@
+{
+  "ignore": ["message.json", "lib.js", "**.json", "mongo.js"]
+}
