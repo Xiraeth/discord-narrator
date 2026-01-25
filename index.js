@@ -5,25 +5,20 @@ const {
 } = require("./lib");
 const Eris = require("eris");
 require("dotenv").config();
-const { connectToMongo, User } = require("./mongo");
+const { connectToMongo } = require("./mongo");
 
 connectToMongo();
 
 const appId = process.env.APP_ID;
 const guildId = process.env.SERVER_ID;
-
-const Constants = Eris.Constants;
+const isInDevelopment = process.env.NODE_ENV === "development";
 
 const commandsToDelete = [];
 const guildCommandsToDelete = [];
 
-const bot = new Eris(
-  `Bot ${process.env.BOT_TOKEN}`,
-  {
-    intents: ["guilds", "guildMessages", "messageContent", "directMessages"],
-  },
-  { description: "She narrates my life", owner: "Monk", prefix: "/" }
-);
+const bot = new Eris(`Bot ${process.env.BOT_TOKEN}`, {
+  intents: ["guilds", "guildMessages", "messageContent", "directMessages"],
+});
 
 bot.on("ready", async () => {
   // const guildCommands = await bot.getCommands();
@@ -44,7 +39,7 @@ bot.on("ready", async () => {
 });
 
 bot.on("interactionCreate", async (interaction) => {
-  writeInteractionDataToFile(interaction);
+  if (isInDevelopment) writeInteractionDataToFile(interaction);
 
   if (interaction instanceof Eris.CommandInteraction) {
     switch (interaction.data.name) {
@@ -97,7 +92,8 @@ bot.on("interactionCreate", async (interaction) => {
 
 bot.on("messageCreate", async (msg) => {
   // this is the bot's response - don't save that anywhere
-  if (msg.author.id !== appId) writeMessageToFile(msg);
+  // only write to file in development mode
+  if (msg.author.id !== appId && isInDevelopment) writeMessageToFile(msg);
 
   const { user, userGuild } = await upsertUserOnMessageCreate(msg);
 
@@ -175,7 +171,7 @@ bot.on("messageCreate", async (msg) => {
 });
 
 bot.on("messageDelete", (msg) => {
-  writeMessageToFile(msg);
+  if (isInDevelopment) writeMessageToFile(msg);
 
   bot.createMessage(
     msg.channel.id,
