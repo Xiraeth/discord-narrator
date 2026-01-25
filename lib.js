@@ -1,6 +1,6 @@
 const fs = require("fs");
 const Eris = require("eris");
-const { User } = require("./mongoSchemas");
+const { User, Guild } = require("./mongoSchemas");
 
 const writeMessageToFile = (msg) => {
   const time = new Date(msg?.timestamp);
@@ -106,8 +106,49 @@ const capitalizeFirstLetter = (string) => {
   return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
 };
 
+const initializeBot = async (bot) => {
+  bot.guilds.values().forEach(async (guild) => {
+    const guildRoles = Array.from(guild.roles.values()).map((role) => role.id);
+    const guildChannels = Array.from(guild.channels.values()).map(
+      (channel) => channel.id
+    );
+    const guildMembers = Array.from(guild.members.values()).map(
+      (member) => member.id
+    );
+
+    const membersCount = guild.memberCount;
+
+    const existingGuild = await Guild.findOne({ guildId: guild.id });
+
+    if (existingGuild) {
+      console.log(
+        `Guild "${guild.name}" is already registered on bot - skipping`
+      );
+    } else {
+      try {
+        await Guild.create({
+          guildId: guild.id,
+          ownerId: guild.ownerID,
+          membersCount: membersCount,
+          banner: guild.banner,
+          roles: guildRoles,
+          members: guildMembers,
+          channels: guildChannels,
+          joinedAt: new Date().getTime(),
+        });
+        console.log(`Guild "${guild.name}" created`);
+      } catch (err) {
+        console.error("error creating guild", err);
+      }
+    }
+    console.log("----- bot is ready -----");
+    return;
+  });
+};
+
 module.exports = {
   writeMessageToFile,
+  initializeBot,
   writeCommandInteractionDataToFile,
   capitalizeFirstLetter,
   getUserDataFromMessage,

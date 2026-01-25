@@ -5,6 +5,7 @@ const {
   writeCommandInteractionDataToFile,
   getUserDataFromMessage,
   capitalizeFirstLetter,
+  initializeBot,
 } = require("./lib");
 
 require("dotenv").config();
@@ -17,80 +18,18 @@ const isInDevelopment = process.env.NODE_ENV === "development";
 const commandsToDelete = [];
 const guildCommandsToDelete = [];
 
-const bot = new Eris(`Bot ${process.env.BOT_TOKEN}`, {
-  intents: ["guilds", "guildMessages", "messageContent", "directMessages"],
-});
+const bot = new Eris.CommandClient(
+  `Bot ${process.env.BOT_TOKEN}`,
+  {
+    intents: ["guilds", "guildMessages", "messageContent", "directMessages"],
+  },
+  {
+    prefix: "!",
+  }
+);
 
 bot.on("ready", async () => {
-  // const guildCommands = await bot.getCommands();
-  // const botGuildCommands = await bot.getGuildCommands(guildId);
-
-  // bot.createCommand({
-  //   name: "name_of_the_command",
-  //   type: Constants.ApplicationCommandTypes.USER,
-  //   description: "description_of_the_command",
-  // });
-
-  // bot.createGuildCommand(guildId, {
-  //   name: "Resend Message",
-  //   type: Constants.ApplicationCommandTypes.MESSAGE,
-  // });
-
-  // bot.createGuildCommand(guildId, {
-  //   name: "select_starter",
-  //   description: "Select a starter Pokemon",
-  //   type: Eris.Constants.ApplicationCommandTypes.CHAT_INPUT,
-  //   options: [
-  //     {
-  //       name: "starter",
-  //       description: "The type of the start",
-  //       type: Eris.Constants.ApplicationCommandOptionTypes.STRING,
-  //       required: true,
-  //       choices: [
-  //         {
-  //           name: "Bulbasaur",
-  //           value: "bulbasaur",
-  //         },
-  //         {
-  //           name: "Charmander",
-  //           value: "charmander",
-  //         },
-  //         {
-  //           name: "Squirtle",
-  //           value: "squirtle",
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       name: "region",
-  //       description: "The region of the starter",
-  //       type: Eris.Constants.ApplicationCommandOptionTypes.STRING,
-  //       required: true,
-  //       choices: [
-  //         {
-  //           name: "Kanto",
-  //           value: "kanto",
-  //         },
-  //         {
-  //           name: "Johto",
-  //           value: "johto",
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       name: "shiny",
-  //       description: "Is the starter shiny?",
-  //       type: Eris.Constants.ApplicationCommandOptionTypes.BOOLEAN,
-  //       required: true,
-  //       choices: [
-  //         { name: "Yes", value: true },
-  //         { name: "No", value: false },
-  //       ],
-  //     },
-  //   ],
-  // });
-
-  console.log("----- bot is ready -----");
+  initializeBot(bot);
 });
 
 bot.on("messageCreate", async (msg) => {
@@ -106,6 +45,7 @@ bot.on("messageCreate", async (msg) => {
     await user.save();
   }
 
+  // warnings for when someone mentiosn everyone
   if (
     (msg.content.toLowerCase().trim().startsWith("@everyone") ||
       msg.content.toLowerCase().trim().startsWith("@here")) &&
@@ -145,39 +85,17 @@ bot.on("messageCreate", async (msg) => {
     return;
   }
 
-  if (msg.content.toLowerCase().trim() === "!pong") {
+  // echo command for connection testing
+  if (msg.content.toLowerCase().trim() === "!echo") {
     try {
-      bot.createMessage(msg.channel.id, "Ping!");
+      bot.createMessage(msg.channel.id, "receiving");
     } catch (err) {
       console.error("error creating message", err);
     }
     return;
   }
 
-  if (msg.content.toLowerCase().trim() === "!classes") {
-    try {
-      const response = await fetch(
-        "https://xiraeth.github.io/dnd-json-test/classes.json",
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      const data = await response.json();
-      const object = JSON.parse(JSON.stringify(data));
-      const array = Object.keys(object);
-
-      const message = array.join(", ");
-
-      bot.createMessage(msg.channel.id, message);
-    } catch (err) {
-      console.error("error creating message", err);
-    }
-    return;
-  }
-
+  // details about myself
   if (msg.content.toLowerCase().trim() === "!author") {
     bot.createMessage(msg.channel.id, {
       messageReference: {
@@ -214,22 +132,14 @@ bot.on("messageCreate", async (msg) => {
 });
 
 bot.on("interactionCreate", async (interaction) => {
+  // command interactions (slash commands)
   if (interaction instanceof Eris.CommandInteraction) {
     if (isInDevelopment) writeCommandInteractionDataToFile(interaction);
 
     const interactionName = interaction.data.name;
 
-    if (interactionName === "select_starter") {
-      const [starter, region, shiny] = interaction.data.options;
-
-      interaction.createMessage(
-        `Your starter of choice is ${capitalizeFirstLetter(starter.value)} and it is ${shiny.value ? "shiny" : "not shiny"}. You will start in ${capitalizeFirstLetter(region.value)}.`
-      );
-      return;
-    } else if (interactionName === "echo") {
-      interaction.createMessage("echo");
-      return;
-    } else if (interactionName === "delete_commands") {
+    // deletes the commands for the guild
+    if (interactionName === "delete_commands") {
       if (guildCommandsToDelete.length) {
         guildCommandsToDelete.forEach(
           async (com) => await bot.deleteGuildCommand(guildId, com)
@@ -239,7 +149,9 @@ bot.on("interactionCreate", async (interaction) => {
         interaction.createMessage("Nothing to delete.");
       }
       return;
-    } else if (interactionName === "delete_global_commands") {
+    }
+    // deletes the global app commands
+    if (interactionName === "delete_global_commands") {
       if (commandsToDelete.length) {
         commandsToDelete.forEach(async (com) => await bot.deleteCommand(com));
         interaction.createMessage("commands deleted");
@@ -247,28 +159,53 @@ bot.on("interactionCreate", async (interaction) => {
         interaction.createMessage("Nothing to delete.");
       }
       return;
-    } else if (interactionName === "Resend Message") {
-      interaction.createMessage(
-        `@everyone, <@${interaction.member.user.id}> said: ${interaction.data.resolved.messages.get(interaction.data.target_id).content}`
-      );
-      return;
-    } else if (interactionName === "create_dekete_command") {
-      bot.createGuildCommand(guildId, {
-        name: "delete_command",
-        description: "delete this command",
-        type: Eris.Constants.ApplicationCommandTypes.CHAT_INPUT,
-      });
-      interaction.createMessage("command '/delete_command' created");
-      return;
-    } else {
-      return interaction.createMessage({
-        content: "interaction received - it wasn't very effective",
-      });
     }
+
+    // resends a message by mentioning everyone
+    if (interactionName === "Resend Message") {
+      const messageId = interaction.data.target_id;
+      const resolvedMessage = interaction.data.resolved.messages.get(messageId);
+      const { content, member, author } = resolvedMessage;
+
+      let name;
+
+      if (member && member.nick) {
+        name = member.nick;
+      } else if (author.bot) {
+        name = author.username;
+      } else {
+        name = author.globalName;
+      }
+
+      return interaction.createMessage(
+        `@everyone, ${name} said:\n> ${content}`
+      );
+    }
+
+    return interaction.createMessage({
+      content: "interaction received - there's no response for this command",
+    });
   }
 
+  // component interactions - select menus and buttons (so far only used for the dismiss button in the !author command)
   if (interaction instanceof Eris.ComponentInteraction) {
     try {
+      if (
+        interaction.data.component_type ===
+        Eris.Constants.ComponentTypes.SELECT_MENU
+      ) {
+        const user = interaction.member.user.id;
+        interaction.createMessage({
+          content: `<@${user}> likes ${interaction.data.values.join(", ")}`,
+        });
+
+        await bot.deleteMessage(
+          interaction.message.channel.id,
+          interaction.message.id
+        );
+        return;
+      }
+
       const dismissMessage = interaction.data.custom_id === "dismiss";
 
       if (dismissMessage) {
