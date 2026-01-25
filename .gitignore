@@ -2,3 +2,5 @@ interaction.json
 message.json
 .env
 node_modules
+nodemon.json
+package-lock.json
