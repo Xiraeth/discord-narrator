@@ -1,6 +1,6 @@
 const fs = require("fs");
 const Eris = require("eris");
-const { User } = require("./mongo");
+const { User } = require("./mongoSchemas");
 
 const writeMessageToFile = (msg) => {
   const time = new Date(msg?.timestamp);
@@ -16,7 +16,7 @@ const writeMessageToFile = (msg) => {
   console.log({ timestamp: greeceTime });
 };
 
-const writeInteractionDataToFile = (interaction) => {
+const writeCommandInteractionDataToFile = (interaction) => {
   const time = new Date(interaction?.createdAt ?? new Date());
   const greeceTime = time.toLocaleTimeString("en-US", {
     timeZone: "Europe/Athens",
@@ -57,7 +57,7 @@ const writeInteractionDataToFile = (interaction) => {
   console.log({ timestamp: greeceTime });
 };
 
-const upsertUserOnMessageCreate = async (msg) => {
+const getUserDataFromMessage = async (msg) => {
   let user = await User.findOne({ userId: msg.author.id });
 
   if (!user) {
@@ -99,16 +99,16 @@ const upsertUserOnMessageCreate = async (msg) => {
     await user.save();
   }
 
-  if (userGuild) {
-    userGuild.messagesTotal++;
-    await user.save();
-  }
-
   return { user, userGuild };
+};
+
+const capitalizeFirstLetter = (string) => {
+  return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
 };
 
 module.exports = {
   writeMessageToFile,
-  writeInteractionDataToFile,
-  upsertUserOnMessageCreate,
+  writeCommandInteractionDataToFile,
+  capitalizeFirstLetter,
+  getUserDataFromMessage,
 };
