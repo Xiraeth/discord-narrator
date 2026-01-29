@@ -52,7 +52,7 @@ bot.on("messageCreate", async (msg) => {
     await user.save();
   }
 
-  // warnings for when someone mentiosn everyone
+  // warnings for when someone mentions everyone
   if (
     (msg.content.toLowerCase().trim().startsWith("@everyone") ||
       msg.content.toLowerCase().trim().startsWith("@here")) &&
