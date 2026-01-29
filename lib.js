@@ -141,9 +141,10 @@ const initializeBot = async (bot) => {
         console.error("error creating guild", err);
       }
     }
-    console.log("----- bot is ready -----");
     return;
   });
+
+  return;
 };
 
 module.exports = {

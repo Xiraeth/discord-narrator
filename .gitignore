@@ -4,4 +4,4 @@ message.json
 node_modules
 nodemon.json
 package-lock.json
-mongoSchemas.js
+commands.json

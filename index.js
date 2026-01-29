@@ -1,12 +1,14 @@
 const Eris = require("eris");
 const { connectToMongo } = require("./mongo");
+const fs = require("fs");
 const {
   writeMessageToFile,
   writeCommandInteractionDataToFile,
   getUserDataFromMessage,
-  capitalizeFirstLetter,
   initializeBot,
 } = require("./lib");
+const { getRandomChampion } = require("./loldle");
+const { createGuessCommands, exportCommands } = require("./commands.js");
 
 require("dotenv").config();
 
@@ -15,8 +17,12 @@ connectToMongo();
 const guildId = process.env.SERVER_ID;
 const isInDevelopment = process.env.NODE_ENV === "development";
 
+// const Constants = Eris.Constants;
+
 const commandsToDelete = [];
 const guildCommandsToDelete = [];
+
+let champion;
 
 const bot = new Eris.CommandClient(
   `Bot ${process.env.BOT_TOKEN}`,
@@ -29,6 +35,7 @@ const bot = new Eris.CommandClient(
 );
 
 bot.on("ready", async () => {
+  // exportCommands(bot, guildId);
   initializeBot(bot);
 });
 
@@ -146,7 +153,9 @@ bot.on("interactionCreate", async (interaction) => {
         );
         interaction.createMessage("commands deleted");
       } else {
-        interaction.createMessage("Nothing to delete.");
+        interaction.createMessage(
+          "Nothing to delete. Update the 'commandsToDelete' array to proceed."
+        );
       }
       return;
     }
@@ -156,9 +165,35 @@ bot.on("interactionCreate", async (interaction) => {
         commandsToDelete.forEach(async (com) => await bot.deleteCommand(com));
         interaction.createMessage("commands deleted");
       } else {
-        interaction.createMessage("Nothing to delete.");
+        interaction.createMessage(
+          "Nothing to delete. Update the 'commandsToDelete' array to proceed."
+        );
       }
       return;
+    }
+
+    if (interactionName === "champion-guess") {
+      champion = await getRandomChampion();
+
+      await interaction.createMessage(
+        "A champion has been rolled. You will be given clues to try to guess which one it is. Every two failed attempts, you will get another hint."
+      );
+
+      const rand = Math.floor(Math.random() * 4);
+      const randomSpell = champion.spells[rand];
+
+      interaction.createFollowup(
+        `Today's champion has a spell called ${randomSpell}. Type '/guess [champion_name]' to start guessing.`
+      );
+
+      createGuessCommands(bot, guildId);
+      return;
+    }
+
+    if (interactionName === "give_up") {
+      interaction.createMessage(
+        `You suck lol. The champion was ${champion.name}`
+      );
     }
 
     // resends a message by mentioning everyone
@@ -182,6 +217,21 @@ bot.on("interactionCreate", async (interaction) => {
       );
     }
 
+    if (interactionName === "give_up") {
+      const cmdsToDelete = JSON.parse(
+        fs.readFileSync("./commands.json")
+      ).guildCommands.filter(
+        (cmd) => cmd.name === "guess" || cmd.name === "give_up"
+      );
+
+      // todo: update commands in the json file
+      cmdsToDelete.forEach((cmd) => {
+        bot.deleteGuildCommand(guildId, cmd.id);
+      });
+
+      return;
+    }
+
     return interaction.createMessage({
       content: "interaction received - there's no response for this command",
     });
@@ -190,25 +240,9 @@ bot.on("interactionCreate", async (interaction) => {
   // component interactions - select menus and buttons (so far only used for the dismiss button in the !author command)
   if (interaction instanceof Eris.ComponentInteraction) {
     try {
-      if (
-        interaction.data.component_type ===
-        Eris.Constants.ComponentTypes.SELECT_MENU
-      ) {
-        const user = interaction.member.user.id;
-        interaction.createMessage({
-          content: `<@${user}> likes ${interaction.data.values.join(", ")}`,
-        });
+      const custom_id = interaction.data.custom_id;
 
-        await bot.deleteMessage(
-          interaction.message.channel.id,
-          interaction.message.id
-        );
-        return;
-      }
-
-      const dismissMessage = interaction.data.custom_id === "dismiss";
-
-      if (dismissMessage) {
+      if (custom_id === "dismiss") {
         interaction.createMessage({
           content: "Message dismissed",
           flags: Eris.Constants.MessageFlags.EPHEMERAL,
