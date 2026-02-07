@@ -7,8 +7,12 @@ const {
   getUserDataFromMessage,
   initializeBot,
 } = require("./lib");
-const { getRandomChampion } = require("./loldle");
-const { createGuessCommands, exportCommands } = require("./commands.js");
+const { getRandomChampion, getChampionChoices } = require("./loldle");
+const {
+  createGuessCommands,
+  exportCommands,
+  deleteGuessCommands,
+} = require("./commands.js");
 
 require("dotenv").config();
 
@@ -23,6 +27,9 @@ const commandsToDelete = [];
 const guildCommandsToDelete = [];
 
 let champion;
+
+// object of {[userId]: {gameId: string, attempts: number, guildId: string}};
+let gameIds = {};
 
 const bot = new Eris.CommandClient(
   `Bot ${process.env.BOT_TOKEN}`,
@@ -139,6 +146,30 @@ bot.on("messageCreate", async (msg) => {
 });
 
 bot.on("interactionCreate", async (interaction) => {
+  console.log(gameIds);
+
+  if (interaction instanceof Eris.AutocompleteInteraction) {
+    if (interaction.data.name === "guess") {
+      const focused = interaction.data.options?.find((opt) => opt.focused);
+      const query = (focused?.value ?? "").toLowerCase().trim();
+      const allChoices = getChampionChoices();
+      const filtered = query
+        ? allChoices.filter(
+            (c) =>
+              c.value.toLowerCase().includes(query) ||
+              c.name.toLowerCase().includes(query)
+          )
+        : allChoices;
+      const choices = filtered
+        .slice(0, 25)
+        .map((c) => ({ name: c.name, value: c.value }));
+      await interaction
+        .result(choices)
+        .catch((err) => console.error("autocomplete error", err));
+    }
+    return;
+  }
+
   // command interactions (slash commands)
   if (interaction instanceof Eris.CommandInteraction) {
     if (isInDevelopment) writeCommandInteractionDataToFile(interaction);
@@ -173,6 +204,12 @@ bot.on("interactionCreate", async (interaction) => {
     }
 
     if (interactionName === "champion-guess") {
+      gameIds[interaction.member.user.id] = {
+        gameId: interaction.id,
+        attempts: 0,
+        guildId: interaction.guildID,
+      };
+
       champion = await getRandomChampion();
 
       await interaction.createMessage(
@@ -190,10 +227,42 @@ bot.on("interactionCreate", async (interaction) => {
       return;
     }
 
+    if (interactionName === "guess") {
+      const userId = interaction.member.user.id;
+      const guessedName = interaction.data.options[0].value;
+      if (guessedName === champion.name) {
+        deleteGuessCommands(bot, guildId);
+        return interaction.createMessage(`Yup, that was it. Congrats nerd`);
+      } else {
+        gameIds[userId].attempts++;
+
+        await interaction.createMessage(
+          `Nope, that's not the one. Try again noob.`
+        );
+
+        if (gameIds[userId].attempts === 2) {
+          interaction.createFollowup(
+            `Two failed attempts. Here's a hint: you suck lmao`
+          );
+        }
+
+        return;
+      }
+    }
+
     if (interactionName === "give_up") {
-      interaction.createMessage(
-        `You suck lol. The champion was ${champion.name}`
-      );
+      if (champion) {
+        interaction.createMessage(
+          `You suck lol. The champion was ${champion.name}`
+        );
+      } else {
+        interaction.createMessage(
+          "No champion has been picked yet. Use /champion-guess to start the game."
+        );
+      }
+
+      deleteGuessCommands(bot, guildId);
+      return;
     }
 
     // resends a message by mentioning everyone
@@ -215,21 +284,6 @@ bot.on("interactionCreate", async (interaction) => {
       return interaction.createMessage(
         `@everyone, ${name} said:\n> ${content}`
       );
-    }
-
-    if (interactionName === "give_up") {
-      const cmdsToDelete = JSON.parse(
-        fs.readFileSync("./commands.json")
-      ).guildCommands.filter(
-        (cmd) => cmd.name === "guess" || cmd.name === "give_up"
-      );
-
-      // todo: update commands in the json file
-      cmdsToDelete.forEach((cmd) => {
-        bot.deleteGuildCommand(guildId, cmd.id);
-      });
-
-      return;
     }
 
     return interaction.createMessage({

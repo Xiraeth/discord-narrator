@@ -1,6 +1,7 @@
 const fs = require("fs");
 const Eris = require("eris");
 const { User, Guild } = require("./mongoSchemas");
+const { deleteGuessCommands } = require("./commands");
 
 const writeMessageToFile = (msg) => {
   const time = new Date(msg?.timestamp);
@@ -108,6 +109,8 @@ const capitalizeFirstLetter = (string) => {
 
 const initializeBot = async (bot) => {
   bot.guilds.values().forEach(async (guild) => {
+    await deleteGuessCommands(bot, guild.id);
+
     const guildRoles = Array.from(guild.roles.values()).map((role) => role.id);
     const guildChannels = Array.from(guild.channels.values()).map(
       (channel) => channel.id
