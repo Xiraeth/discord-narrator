@@ -24,6 +24,9 @@
     "dotenv": "^17.2.3",
     "eris": "^0.18.0",
     "express": "^5.2.1",
-    "mongoose": "^9.1.5"
+    "libsodium-wrappers": "^0.8.2",
+    "mongoose": "^9.1.5",
+    "opusscript": "^0.1.1",
+    "sodium-native": "^5.0.10"
   }
 }

@@ -1,11 +1,12 @@
 const Eris = require("eris");
-const { connectToMongo } = require("./mongo");
+const { connectToMongo, getUser } = require("./mongo");
 const fs = require("fs");
 const {
   writeMessageToFile,
   writeCommandInteractionDataToFile,
   getUserDataFromMessage,
   initializeBot,
+  formatDate,
 } = require("./lib");
 const { getRandomChampion, getChampionChoices } = require("./loldle");
 const {
@@ -34,7 +35,14 @@ let gameIds = {};
 const bot = new Eris.CommandClient(
   `Bot ${process.env.BOT_TOKEN}`,
   {
-    intents: ["guilds", "guildMessages", "messageContent", "directMessages"],
+    intents: [
+      "guilds",
+      "guildMessages",
+      "messageContent",
+      "directMessages",
+      "voiceStates",
+      "guildVoiceStates",
+    ],
   },
   {
     prefix: "!",
@@ -42,7 +50,6 @@ const bot = new Eris.CommandClient(
 );
 
 bot.on("ready", async () => {
-  // exportCommands(bot, guildId);
   initializeBot(bot);
 });
 
@@ -139,6 +146,45 @@ bot.on("messageCreate", async (msg) => {
               type: Eris.Constants.ComponentTypes.BUTTON,
             },
           ],
+        },
+      ],
+    });
+  }
+
+  if (msg.content === "!user") {
+    const { user, error } = await getUser(msg.author.id);
+    if (!user || error) {
+      return bot.createMessage(msg.channel.id, "User not found");
+    }
+    const userGuild = user.guilds.find(
+      (guild) => guild.guildId === msg.guildID
+    );
+    bot.createMessage(msg.channel.id, {
+      embeds: [
+        {
+          title: "User random info",
+          author: {
+            name: msg.author.username,
+            icon_url: msg.author.avatarURL,
+          },
+          color: 0xcc40b0,
+          fields: [
+            {
+              name: "Total messages in server",
+              value: userGuild.messagesTotal,
+            },
+            {
+              name: "Joined server at",
+              value: formatDate(new Date(userGuild.joinedAt)),
+            },
+            {
+              name: "Created at",
+              value: formatDate(new Date(msg.author.createdAt)),
+            },
+          ],
+          footer: {
+            text: "Created with Eris.",
+          },
         },
       ],
     });

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { User } = require("./mongoSchemas");
 require("dotenv").config();
 
 const connectToMongo = () =>
@@ -11,4 +12,12 @@ const connectToMongo = () =>
       console.error("Error connecting to MongoDB database", err);
     });
 
-module.exports = { connectToMongo };
+const getUser = async (userId) => {
+  const user = await User.findOne({ userId });
+  if (!user) {
+    return { user: null, error: `User not found` };
+  }
+  return { user, error: null };
+};
+
+module.exports = { connectToMongo, getUser };

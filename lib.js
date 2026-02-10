@@ -150,10 +150,18 @@ const initializeBot = async (bot) => {
   return;
 };
 
+const formatDate = (date) => {
+  const day = date.getDate();
+  const month = date.getMonth() + 1;
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
 module.exports = {
   writeMessageToFile,
   initializeBot,
   writeCommandInteractionDataToFile,
   capitalizeFirstLetter,
   getUserDataFromMessage,
+  formatDate,
 };
