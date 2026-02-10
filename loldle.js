@@ -16,6 +16,7 @@ const getRandomChampion = async () => {
   const randomChampion = championsData[Object.keys(championsData)[rand]];
 
   const { name, passive, title, partype: resource, tags } = randomChampion;
+  console.log(tags);
 
   const filteredPassiveDescription = passive.description.replaceAll(
     name,

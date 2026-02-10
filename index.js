@@ -146,8 +146,6 @@ bot.on("messageCreate", async (msg) => {
 });
 
 bot.on("interactionCreate", async (interaction) => {
-  console.log(gameIds);
-
   if (interaction instanceof Eris.AutocompleteInteraction) {
     if (interaction.data.name === "guess") {
       const focused = interaction.data.options?.find((opt) => opt.focused);
@@ -230,8 +228,17 @@ bot.on("interactionCreate", async (interaction) => {
     if (interactionName === "guess") {
       const userId = interaction.member.user.id;
       const guessedName = interaction.data.options[0].value;
-      if (guessedName === champion.name) {
+      const sanitizedGuessedName = guessedName
+        .toLowerCase()
+        .replaceAll(" ", "")
+        .trim();
+      const sanitizedChampionName = champion.name
+        .toLowerCase()
+        .replaceAll(" ", "")
+        .trim();
+      if (sanitizedGuessedName === sanitizedChampionName) {
         deleteGuessCommands(bot, guildId);
+        delete gameIds[userId];
         return interaction.createMessage(`Yup, that was it. Congrats nerd`);
       } else {
         gameIds[userId].attempts++;
@@ -241,8 +248,21 @@ bot.on("interactionCreate", async (interaction) => {
         );
 
         if (gameIds[userId].attempts === 2) {
+          const championTags = champion.tags.join(", ");
           interaction.createFollowup(
-            `Two failed attempts. Here's a hint: you suck lmao`
+            `Two failed attempts. Here's a hint: this champion is a ${championTags}`
+          );
+        }
+
+        if (gameIds[userId].attempts === 4) {
+          interaction.createFollowup(
+            `Four failed attempts. Here's another hint: the resource they use is ${champion.partype}`
+          );
+        }
+
+        if (gameIds[userId].attempts === 6) {
+          interaction.createFollowup(
+            `Four failed attempts. Last tip: their passive is called ${champion.passive.name}: ${champion.passive.description}`
           );
         }
 
@@ -252,8 +272,9 @@ bot.on("interactionCreate", async (interaction) => {
 
     if (interactionName === "give_up") {
       if (champion) {
+        delete gameIds[interaction.member.user.id];
         interaction.createMessage(
-          `You suck lol. The champion was ${champion.name}`
+          `The champion was ${champion.name}. Better luck next time`
         );
       } else {
         interaction.createMessage(
