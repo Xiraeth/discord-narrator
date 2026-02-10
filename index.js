@@ -256,13 +256,13 @@ bot.on("interactionCreate", async (interaction) => {
 
         if (gameIds[userId].attempts === 4) {
           interaction.createFollowup(
-            `Four failed attempts. Here's another hint: the resource they use is ${champion.partype}`
+            `Here's another hint: the resource they use is ${champion.partype}`
           );
         }
 
         if (gameIds[userId].attempts === 6) {
           interaction.createFollowup(
-            `Four failed attempts. Last tip: their passive is called ${champion.passive.name}: ${champion.passive.description}`
+            `Last tip: their passive is called ${champion.passive.name}: ${champion.passive.description}`
           );
         }
 
