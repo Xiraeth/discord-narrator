@@ -1,6 +1,5 @@
 const Eris = require("eris");
 const { connectToMongo, getUser } = require("./mongo");
-const fs = require("fs");
 const {
   writeMessageToFile,
   writeCommandInteractionDataToFile,
@@ -9,11 +8,8 @@ const {
   formatDate,
 } = require("./lib");
 const { getRandomChampion, getChampionChoices } = require("./loldle");
-const {
-  createGuessCommands,
-  exportCommands,
-  deleteGuessCommands,
-} = require("./commands.js");
+const { startEmergencyHttpServer } = require("./emergencyHttpServer");
+const { createGuessCommands, deleteGuessCommands } = require("./commands.js");
 
 require("dotenv").config();
 
@@ -22,14 +18,12 @@ connectToMongo();
 const guildId = process.env.SERVER_ID;
 const isInDevelopment = process.env.NODE_ENV === "development";
 
-// const Constants = Eris.Constants;
-
 const commandsToDelete = [];
 const guildCommandsToDelete = [];
 
 let champion;
+let isBotReady = false;
 
-// object of {[userId]: {gameId: string, attempts: number, guildId: string}};
 let gameIds = {};
 
 const bot = new Eris.CommandClient(
@@ -50,13 +44,12 @@ const bot = new Eris.CommandClient(
 );
 
 bot.on("ready", async () => {
+  isBotReady = true;
   initializeBot(bot);
 });
 
 bot.on("messageCreate", async (msg) => {
-  // don't do anything if the message is from a bot
   if (msg.author.bot) return;
-  // only write to file in development mode for debugging and logging purposes
   if (isInDevelopment) writeMessageToFile(msg);
 
   const { user, userGuild } = await getUserDataFromMessage(msg);
@@ -66,7 +59,6 @@ bot.on("messageCreate", async (msg) => {
     await user.save();
   }
 
-  // warnings for when someone mentions everyone
   if (
     (msg.content.toLowerCase().trim().startsWith("@everyone") ||
       msg.content.toLowerCase().trim().startsWith("@here")) &&
@@ -358,7 +350,6 @@ bot.on("interactionCreate", async (interaction) => {
     });
   }
 
-  // component interactions - select menus and buttons (so far only used for the dismiss button in the !author command)
   if (interaction instanceof Eris.ComponentInteraction) {
     try {
       const custom_id = interaction.data.custom_id;
@@ -383,5 +374,9 @@ bot.on("interactionCreate", async (interaction) => {
 bot.on("error", (err) => {
   console.error(err);
 });
+
+if (isInDevelopment) {
+  startEmergencyHttpServer({ bot, isBotReady: () => isBotReady });
+}
 
 bot.connect();
