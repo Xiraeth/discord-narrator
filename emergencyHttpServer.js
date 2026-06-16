@@ -4,8 +4,6 @@ const startEmergencyHttpServer = ({ bot, isBotReady }) => {
   const app = express();
   const httpPort = Number(process.env.HTTP_PORT) || 3000;
   const emergencyUserId = process.env.EMERGENCY_USER_ID;
-  const emergencyMessage =
-    process.env.EMERGENCY_MESSAGE || "Emergency button was pressed.";
 
   app.use(express.json());
 
@@ -28,7 +26,9 @@ const startEmergencyHttpServer = ({ bot, isBotReady }) => {
 
     try {
       const dmChannel = await bot.getDMChannel(emergencyUserId);
-      await bot.createMessage(dmChannel.id, emergencyMessage);
+      const message = req.body?.message || "Emergency button was pressed.";
+
+      await bot.createMessage(dmChannel.id, message);
       console.log("Emergency request received:", {
         body: req.body,
         ip: req.ip,
